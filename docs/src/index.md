@@ -4,7 +4,7 @@ CurrentModule = PolyesterWeave
 
 # PolyesterWeave
 
-Documentation for [PolyesterWeave](https://github.com/chriselrod/PolyesterWeave.jl).
+Documentation for [PolyesterWeave](https://github.com/JuliaSIMD/PolyesterWeave.jl).
 
 ```@index
 ```
