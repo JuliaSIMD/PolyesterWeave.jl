@@ -44,13 +44,16 @@ end
   all_threads, all_threads
 end
 @inline function _exchange_mask!(wp, threadmask::Unsigned)
-  all_threads = _atomic_xchg!(wp, ~(threadmask % worker_type()))
-  all_threads, all_threads & threadmask
+  all_threads = _atomic_xchg!(wp, zero(worker_type()))
+  saved = all_threads & (~(threadmask%worker_type()))
+  _atomic_store!(wp, saved)
+#  all_threads = _atomic_xchg!(wp, ~(threadmask % worker_type()))
+  all_threads | saved, all_threads & threadmask
 end
 # @inline function __request_threads(num_requested::UInt32, wp::Ptr, reserved_threads)
 @inline function __request_threads(num_requested::UInt32, wp::Ptr, threadmask)
   no_threads = zero(worker_type())
-  if num_requested % Int32 ≤ zero(Int32)
+  if (num_requested ≢ StaticInt{-1}()) && (num_requested % Int32 ≤ zero(Int32))
     return UnsignedIteratorEarlyStop(zero(worker_type()), 0x00000000), no_threads, 0x00000000, wp
   end
   # to get more, we xchng, setting all to `0`
@@ -78,9 +81,13 @@ end
     all_threads &= (~masked)
     nexcess == zero(nexcess) && break
   end
+  @show _all_threads, all_threads
   _atomic_store!(wp, _all_threads & (~all_threads))
   return UnsignedIteratorEarlyStop(all_threads, num_requested), all_threads, 0x00000000, wpret
 end
+
+#_apply_mask
+
 @inline function request_threads(num_requested, threadmask)
   _request_threads(num_requested % UInt32, worker_pointer(), worker_mask_count(), threadmask)
 end

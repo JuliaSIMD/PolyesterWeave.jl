@@ -40,6 +40,10 @@ function worker_mask_init(x)
     ((0x0000000000000001 << x) - 0x0000000000000001)
   end
 end
+# function static_thread_init()
+#   nt = num_threads()
+#   Base.Cartesian.@ntuple 8 i -> worker_mask_init(nt - (i-1)*64)
+# end
 function reset_workers!()
   # workers = ntuple(((zero ∘ UInt64)), Val(8))
   nt = dynamic_thread_count() - 1
