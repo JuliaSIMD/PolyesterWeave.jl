@@ -8,10 +8,6 @@ function worker_mask_count()
 end
 worker_size() = worker_bits() ÷ worker_mask_count()
 
-# _worker_type_combined(::StaticInt{1}) = worker_type()
-# _worker_type_combined(::StaticInt{M}) where {M} = NTuple{M,worker_type()}
-# worker_type_combined() = _worker_type_combined(worker_mask_count())
-
 _mask_type(::StaticInt{8}) = UInt8
 _mask_type(::StaticInt{16}) = UInt16
 _mask_type(::StaticInt{32}) = UInt32
@@ -47,10 +43,8 @@ end
   all_threads = _atomic_xchg!(wp, zero(worker_type()))
   saved = all_threads & (~(threadmask%worker_type()))
   _atomic_store!(wp, saved)
-#  all_threads = _atomic_xchg!(wp, ~(threadmask % worker_type()))
   all_threads | saved, all_threads & threadmask
 end
-# @inline function __request_threads(num_requested::UInt32, wp::Ptr, reserved_threads)
 @inline function __request_threads(num_requested::UInt32, wp::Ptr, threadmask)
   no_threads = zero(worker_type())
   if (num_requested ≢ StaticInt{-1}()) && (num_requested % Int32 ≤ zero(Int32))
@@ -81,12 +75,9 @@ end
     all_threads &= (~masked)
     nexcess == zero(nexcess) && break
   end
-  @show _all_threads, all_threads
   _atomic_store!(wp, _all_threads & (~all_threads))
   return UnsignedIteratorEarlyStop(all_threads, num_requested), all_threads, 0x00000000, wpret
 end
-
-#_apply_mask
 
 @inline function request_threads(num_requested, threadmask)
   _request_threads(num_requested % UInt32, worker_pointer(), worker_mask_count(), threadmask)
