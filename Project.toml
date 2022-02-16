@@ -15,7 +15,7 @@ BitTwiddlingConvenienceFunctions = "0.1"
 CPUSummary = "0.1.2"
 IfElse = "0.1"
 Static = "0.3.1, 0.4, 0.5"
-ThreadingUtilities = "0.4.5"
+ThreadingUtilities = "0.4.5, 0.5"
 julia = "1.5"
 
 [extras]
