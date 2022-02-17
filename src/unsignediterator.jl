@@ -9,20 +9,13 @@ Base.eltype(::UnsignedIterator) = UInt32
 Base.length(u::UnsignedIterator) = count_ones(u.u)
 Base.size(u::UnsignedIterator) = (count_ones(u.u),)
 
-# @inline function Base.iterate(u::UnsignedIterator, uu = u.u)
-#     tz = trailing_zeros(uu) % UInt32
-#     # tz ≥ 0x00000020 && return nothing
-#     tz > 0x0000001f && return nothing
-#     uu ⊻= (0x00000001 << tz)
-#     tz, uu
-# end
 @inline function Base.iterate(u::UnsignedIterator, (i,uu) = (0x00000000,u.u))
-    tz = trailing_zeros(uu) % UInt32
-    tz == 0x00000020 && return nothing
-    i += tz
-    tz += 0x00000001
-    uu >>>= tz
-    (i, (i+0x00000001,uu))
+  tz = trailing_zeros(uu) % UInt32
+  tz == oftype(uu, 8*sizeof(uu)) && return nothing
+  i += tz
+  tz += 0x00000001
+  uu >>>= tz
+  (i, (i+0x00000001,uu))
 end
 
 """
