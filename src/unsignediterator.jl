@@ -12,10 +12,10 @@ Base.size(u::UnsignedIterator) = (count_ones(u.u),)
 @inline function Base.iterate(u::UnsignedIterator, (i,uu) = (0x00000000,u.u))
   tz = trailing_zeros(uu) % UInt32
   tz == oftype(uu, 8*sizeof(uu)) && return nothing
-  i += tz
   tz += 0x00000001
+  i += tz
   uu >>>= tz
-  (i, (i+0x00000001,uu))
+  (i, (i, uu))
 end
 
 """
