@@ -53,4 +53,6 @@ function __init__()
   reset_workers!()
 end
 
+include("utility.jl")
+
 end
