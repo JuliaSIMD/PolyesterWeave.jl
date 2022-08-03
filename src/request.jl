@@ -29,7 +29,7 @@ function free_threads!(freed_threads_tuple::NTuple{N, U}) where {N,U<:Unsigned}
   wp = worker_pointer()
   for freed_threads in freed_threads_tuple
     _atomic_or!(wp, freed_threads)
-    wp += 8
+    wp += sizeof(worker_pointer_type())
   end
   nothing
 end
