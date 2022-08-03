@@ -25,7 +25,7 @@ function free_threads!(freed_threads_tuple::NTuple{1, U}) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads_tuple[1])
   nothing
 end
-function free_threads!(freed_threads_tuple::NTuple{N, U}) where {N,U<:Unsigned}
+function free_threads!(freed_threads_tuple::Tuple{U, Vararg{U, N}}) where {N,U<:Unsigned}
   wp = worker_pointer()
   for freed_threads in freed_threads_tuple
     _atomic_or!(wp, freed_threads)
