@@ -17,10 +17,23 @@ worker_pointer_type() = Ptr{worker_type()}
 
 worker_pointer() = Base.unsafe_convert(worker_pointer_type(), pointer_from_objref(WORKERS))
 
-function free_threads!(freed_threads)
+function free_threads!(freed_threads::U) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads)
   nothing
 end
+function free_threads!(freed_threads_tuple::NTuple{1, U}) where {U<:Unsigned}
+  _atomic_or!(worker_pointer(), freed_threads_tuple[1])
+  nothing
+end
+function free_threads!(freed_threads_tuple::NTuple{N, U}) where {N,U<:Unsigned}
+  wp = worker_pointer()
+  for freed_threads in freed_threads_tuple
+    _atomic_or!(wp, freed_threads)
+    wp += 8
+  end
+  nothing
+end
+
 @inline _remaining(x::Tuple) = Base.tail(x)
 @inline _remaining(@nospecialize(x)) = nothing
 @inline _first(x::Tuple{}) = nothing
