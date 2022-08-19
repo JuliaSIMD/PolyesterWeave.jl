@@ -54,9 +54,10 @@ end
 end
 @inline function _exchange_mask!(wp, threadmask::Unsigned)
   all_threads = _atomic_xchg!(wp, zero(worker_type()))
-  saved = all_threads & (~(threadmask%worker_type()))
+  tm = threadmask%worker_type()
+  saved = all_threads & (~tm)
   _atomic_store!(wp, saved)
-  all_threads | saved, all_threads & threadmask
+  all_threads | saved, all_threads & tm
 end
 @inline function __request_threads(num_requested::UInt32, wp::Ptr, threadmask)
   no_threads = zero(worker_type())
