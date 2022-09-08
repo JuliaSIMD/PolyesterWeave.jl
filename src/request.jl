@@ -1,21 +1,14 @@
 function worker_bits()
-  ws = nextpow2(num_threads())
-  ifelse(Static.lt(ws,StaticInt{8}()), StaticInt{8}(), ws)
+  wts = nextpow2(num_threads())
+  ws = static(8sizeof(UInt))
+  ifelse(Static.lt(wts,ws), ws, wts)
 end
 function worker_mask_count()
   bits = worker_bits()
   (bits + StaticInt{63}()) ÷ StaticInt{64}() # cld not defined on `StaticInt`
 end
-worker_size() = worker_bits() ÷ worker_mask_count()
 
-_mask_type(::StaticInt{8}) = UInt8
-_mask_type(::StaticInt{16}) = UInt16
-_mask_type(::StaticInt{32}) = UInt32
-_mask_type(::StaticInt{64}) = UInt64
-worker_type() = _mask_type(worker_size())
-worker_pointer_type() = Ptr{worker_type()}
-
-worker_pointer() = Base.unsafe_convert(worker_pointer_type(), pointer_from_objref(WORKERS))
+worker_pointer() = Base.unsafe_convert(Ptr{UInt}, pointer_from_objref(WORKERS))
 
 function free_threads!(freed_threads::U) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads)
@@ -29,14 +22,14 @@ function free_threads!(freed_threads_tuple::Tuple{U, Vararg{U, N}}) where {N,U<:
   wp = worker_pointer()
   for freed_threads in freed_threads_tuple
     _atomic_or!(wp, freed_threads)
-    wp += sizeof(worker_pointer_type())
+    wp += sizeof(UInt)
   end
   nothing
 end
 
 @inline _remaining(x::Tuple) = Base.tail(x)
 @inline _remaining(@nospecialize(x)) = nothing
-@inline _first(x::Tuple{}) = nothing
+@inline _first(::Tuple{}) = nothing
 @inline _first(x::Tuple{X,Vararg}) where {X<:Unsigned} = getfield(x,1)
 @inline _first(x::Union{Unsigned,Nothing}) = x
 @inline function _request_threads(num_requested::UInt32, wp::Ptr, ::StaticInt{N}, threadmask) where {N}
@@ -49,24 +42,24 @@ end
   (ui, ), (ft, )
 end
 @inline function _exchange_mask!(wp, ::Nothing)
-  all_threads = _atomic_xchg!(wp, zero(worker_type()))
+  all_threads = _atomic_xchg!(wp, zero(UInt))
   all_threads, all_threads
 end
 @inline function _exchange_mask!(wp, threadmask::Unsigned)
-  all_threads = _atomic_xchg!(wp, zero(worker_type()))
-  tm = threadmask%worker_type()
+  all_threads = _atomic_xchg!(wp, zero(UInt))
+  tm = threadmask%UInt
   saved = all_threads & (~tm)
   _atomic_store!(wp, saved)
   all_threads | saved, all_threads & tm
 end
 @inline function __request_threads(num_requested::UInt32, wp::Ptr, threadmask)
-  no_threads = zero(worker_type())
+  no_threads = zero(UInt)
   if (num_requested ≢ StaticInt{-1}()) && (num_requested % Int32 ≤ zero(Int32))
-    return UnsignedIteratorEarlyStop(zero(worker_type()), 0x00000000), no_threads, 0x00000000, wp
+    return UnsignedIteratorEarlyStop(zero(UInt), 0x00000000), no_threads, 0x00000000, wp
   end
   # to get more, we xchng, setting all to `0`
   # then see which we need, and free those we aren't using.
-  wpret = wp + 8 # (worker_type() === UInt64) | (worker_mask_count() === StaticInt(1)) #, so adding 8 is fine.
+  wpret = wp + 8 # (UInt === UInt64) | (worker_mask_count() === StaticInt(1)) #, so adding 8 is fine.
   # _all_threads = all_threads = _apply_mask(_atomic_xchg!(wp, no_threads), threadmask)
   _all_threads, all_threads = _exchange_mask!(wp, threadmask)
   additional_threads = count_ones(all_threads) % UInt32
@@ -83,7 +76,7 @@ end
   while true
     # start by trying to trim off excess from lz
     lz += (-nexcess)%UInt32
-    m = (one(worker_type()) << (UInt32(last(worker_size())) - lz)) - one(worker_type())
+    m = (one(UInt) << (UInt32(8sizeof(UInt)) - lz)) - one(UInt)
     masked = (all_threads & m) ⊻ all_threads
     nexcess += count_ones(masked) % UInt32
     all_threads &= (~masked)

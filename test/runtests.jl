@@ -4,7 +4,7 @@ using Test
 @testset "PolyesterWeave.jl" begin
 
   threads, torelease = PolyesterWeave.request_threads(Threads.nthreads()-1)
-  @test threads isa NTuple{Int(PolyesterWeave.worker_mask_count()),PolyesterWeave.UnsignedIteratorEarlyStop{PolyesterWeave.worker_type()}}
+  @test threads isa NTuple{Int(PolyesterWeave.worker_mask_count()),PolyesterWeave.UnsignedIteratorEarlyStop{UInt}}
   @test sum(map(length, threads)) == (PolyesterWeave.num_threads())-1
   map(PolyesterWeave.free_threads!, torelease)
 
