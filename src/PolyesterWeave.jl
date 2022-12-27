@@ -4,7 +4,6 @@ using BitTwiddlingConvenienceFunctions: nextpow2
 using ThreadingUtilities: _atomic_store!, _atomic_or!, _atomic_xchg!
 using Static
 using IfElse: ifelse
-using CPUSummary: num_threads
 
 export request_threads, free_threads!
 
@@ -29,6 +28,12 @@ const WORKERS = Ref{NTuple{8,UInt64}}(ntuple(((zero ∘ UInt64)), Val(8)))
 
 include("unsignediterator.jl")
 include("request.jl")
+
+# Consider removing this from Polyester and PolyesterWeave on the next breaking release
+# It is exported by Polyester, so we can not just delete it without a breaking release.
+# Previously we used CPUSummary.num_threads which caused significant
+# TTFX problems due to it being redefined inside of CPUSummary.__init__
+const num_threads = Threads.nthreads
 
 dynamic_thread_count() = min((Sys.CPU_THREADS)::Int, Threads.nthreads())
 function worker_mask_init(x)
