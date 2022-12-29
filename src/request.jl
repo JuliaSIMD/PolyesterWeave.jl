@@ -1,5 +1,5 @@
 function worker_bits()
-  wts = nextpow2(num_threads())
+  wts = nextpow2(Sys.CPU_THREADS) # TODO this is overprovisioning - make sure we are not needlessly iterating through this if we actually have fewer threads available
   ws = static(8sizeof(UInt))
   ifelse(Static.lt(wts,ws), ws, wts)
 end
@@ -40,6 +40,9 @@ end
 @inline function _request_threads(num_requested::UInt32, wp::Ptr, ::StaticInt{1}, threadmask)
   ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
   (ui, ), (ft, )
+end
+@inline function _request_threads(num_requested::UInt32, wp::Ptr, i::Int, threadmask) # fallback in absence of static scheduling
+    _request_threads(num_requested::UInt32, wp::Ptr, StaticInt{i}(), threadmask)
 end
 @inline function _exchange_mask!(wp, ::Nothing)
   all_threads = _atomic_xchg!(wp, zero(UInt))
@@ -90,4 +93,3 @@ end
   _request_threads(num_requested % UInt32, worker_pointer(), worker_mask_count(), threadmask)
 end
 @inline request_threads(num_requested) = request_threads(num_requested, nothing)
-
