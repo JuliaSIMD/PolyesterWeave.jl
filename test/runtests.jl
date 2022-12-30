@@ -8,7 +8,7 @@ using Test
 
   threads, torelease = PolyesterWeave.request_threads(Threads.nthreads()-1)
   @test threads isa NTuple{Int(PolyesterWeave.worker_mask_count()),PolyesterWeave.UnsignedIteratorEarlyStop{UInt}}
-  @test sum(map(length, threads)) == (min(Sys.CPU_THREADS,PolyesterWeave.num_threads()))-1
+  @test sum(map(length, threads)) == PolyesterWeave.dynamic_thread_count()-1
   PolyesterWeave.free_threads!(torelease)
 
   r1 = PolyesterWeave.request_threads(Sys.CPU_THREADS, 0x0a)
