@@ -149,6 +149,8 @@ julia> r2 = PolyesterWeave.request_threads(30)
 ((Thread (0) Iterator: UInt64[],), (0x0000000000000000,))
 ```
 
+The following are unsupported features that might be yanked out at any time:
+
 During request you can also mask out which threads you can get. For instance, this call:
 
 ```
