@@ -43,6 +43,9 @@ end
   ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
   (ui, ), (ft, )
 end
+@inline function _request_threads(num_requested::UInt32, wp::Ptr, i::Int, threadmask) # fallback in absence of static scheduling
+    _request_threads(num_requested::UInt32, wp::Ptr, StaticInt{i}(), threadmask)
+end
 @inline function _exchange_mask!(wp, ::Nothing)
   all_threads = _atomic_xchg!(wp, zero(UInt))
   all_threads, all_threads
