@@ -58,7 +58,6 @@ end
   ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
   (ui,), (ft,)
 end
-#include("dynamic_request.jl") # See comments inside of that file.
 
 @inline function _exchange_mask!(wp, ::Nothing)
   all_threads = _atomic_xchg!(wp, zero(UInt))
