@@ -59,36 +59,7 @@ end
   (ui,), (ft,)
 end
 
-@inline function _request_threads_recurse(
-  ::Tuple{},
-  num_requested::UInt32,
-  wp::Ptr,
-  threadmask,
-  ::Int,
-)
-  _request_threads(num_requested, wp, StaticInt{1}(), threadmask)
-end
-@inline function _request_threads_recurse(
-  tup::Tuple{StaticInt{N},Vararg},
-  num_requested::UInt32,
-  wp::Ptr,
-  threadmask,
-  i::Int,
-) where {N}
-  if i == N
-    _request_threads(num_requested, wp, StaticInt{N}(), threadmask)
-  else
-    _request_threads_recurse(Base.tail(tup), num_requested, wp, threadmask, i)
-  end
-end
 
-
-@inline function _request_threads(num_requested::UInt32, wp::Ptr, i::Int, threadmask) # fallback in absence of static scheduling
-  m = cld(CPUSummary.sys_threads(), static(8sizeof(UInt)))
-  tup = ntuple(static ∘ Base.Fix1(-, m + 1), Val(Int(m) - 1))
-
-  _request_threads_recurse(tup, num_requested, wp, threadmask, i)
-end
 @inline function _exchange_mask!(wp, ::Nothing)
   all_threads = _atomic_xchg!(wp, zero(UInt))
   all_threads, all_threads
