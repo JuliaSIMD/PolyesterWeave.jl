@@ -3,7 +3,7 @@ import CPUSummary
 function worker_bits()
   wts = nextpow2(CPUSummary.sys_threads()) # Typically sys_threads (i.e. Sys.CPU_THREADS) does not change between runs, thus it will precompile well.
   ws = static(8sizeof(UInt))               # For testing purposes it can be overridden by JULIA_CPU_THREADS,
-  ifelse(Static.lt(wts,ws), ws, wts)
+  ifelse(Static.lt(wts, ws), ws, wts)
 end
 function worker_mask_count()
   bits = worker_bits()
@@ -16,11 +16,11 @@ function free_threads!(freed_threads::U) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads)
   nothing
 end
-function free_threads!(freed_threads_tuple::NTuple{1, U}) where {U<:Unsigned}
+function free_threads!(freed_threads_tuple::NTuple{1,U}) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads_tuple[1])
   nothing
 end
-function free_threads!(freed_threads_tuple::Tuple{U, Vararg{U, N}}) where {N,U<:Unsigned}
+function free_threads!(freed_threads_tuple::Tuple{U,Vararg{U,N}}) where {N,U<:Unsigned}
   wp = worker_pointer()
   for freed_threads in freed_threads_tuple
     _atomic_or!(wp, freed_threads)
@@ -32,19 +32,62 @@ end
 @inline _remaining(x::Tuple) = Base.tail(x)
 @inline _remaining(@nospecialize(x)) = nothing
 @inline _first(::Tuple{}) = nothing
-@inline _first(x::Tuple{X,Vararg}) where {X<:Unsigned} = getfield(x,1)
+@inline _first(x::Tuple{X,Vararg}) where {X<:Unsigned} = getfield(x, 1)
 @inline _first(x::Union{Unsigned,Nothing}) = x
-@inline function _request_threads(num_requested::UInt32, wp::Ptr, ::StaticInt{N}, threadmask) where {N}
+@inline function _request_threads(
+  num_requested::UInt32,
+  wp::Ptr,
+  ::StaticInt{N},
+  threadmask,
+) where {N}
   ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
-  uit, ftt = _request_threads(num_requested, wp, StaticInt{N}()-StaticInt{1}(), _remaining(threadmask))
+  uit, ftt = _request_threads(
+    num_requested,
+    wp,
+    StaticInt{N}() - StaticInt{1}(),
+    _remaining(threadmask),
+  )
   (ui, uit...), (ft, ftt...)
 end
-@inline function _request_threads(num_requested::UInt32, wp::Ptr, ::StaticInt{1}, threadmask)
+@inline function _request_threads(
+  num_requested::UInt32,
+  wp::Ptr,
+  ::StaticInt{1},
+  threadmask,
+)
   ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
-  (ui, ), (ft, )
+  (ui,), (ft,)
 end
+
+@inline function _request_threads_recurse(
+  ::Tuple{},
+  num_requested::UInt32,
+  wp::Ptr,
+  threadmask,
+  ::Int,
+)
+  _request_threads(num_requested, wp, StaticInt{1}(), threadmask)
+end
+@inline function _request_threads_recurse(
+  tup::Tuple{StaticInt{N},Vararg},
+  num_requested::UInt32,
+  wp::Ptr,
+  threadmask,
+  i::Int,
+) where {N}
+  if i == N
+    _request_threads(num_requested, wp, StaticInt{N}(), threadmask)
+  else
+    _request_threads_recurse(Base.tail(tup), num_requested, wp, threadmask, i)
+  end
+end
+
+
 @inline function _request_threads(num_requested::UInt32, wp::Ptr, i::Int, threadmask) # fallback in absence of static scheduling
-    _request_threads(num_requested::UInt32, wp::Ptr, StaticInt{i}(), threadmask)
+  m = cld(CPUSummary.sys_threads(), static(8sizeof(UInt)))
+  tup = ntuple(static ∘ Base.Fix1(-, m + 1), Val(Int(m) - 1))
+
+  _request_threads_recurse(tup, num_requested, wp, threadmask, i)
 end
 @inline function _exchange_mask!(wp, ::Nothing)
   all_threads = _atomic_xchg!(wp, zero(UInt))
@@ -52,7 +95,7 @@ end
 end
 @inline function _exchange_mask!(wp, threadmask::Unsigned)
   all_threads = _atomic_xchg!(wp, zero(UInt))
-  tm = threadmask%UInt
+  tm = threadmask % UInt
   saved = all_threads & (~tm)
   _atomic_store!(wp, saved)
   all_threads | saved, all_threads & tm
@@ -80,7 +123,7 @@ end
   lz = leading_zeros(all_threads) % UInt32
   while true
     # start by trying to trim off excess from lz
-    lz += (-nexcess)%UInt32
+    lz += (-nexcess) % UInt32
     m = (one(UInt) << (UInt32(8sizeof(UInt)) - lz)) - one(UInt)
     masked = (all_threads & m) ⊻ all_threads
     nexcess += count_ones(masked) % UInt32
@@ -88,10 +131,18 @@ end
     nexcess == zero(nexcess) && break
   end
   _atomic_store!(wp, _all_threads & (~all_threads))
-  return UnsignedIteratorEarlyStop(all_threads, num_requested), all_threads, 0x00000000, wpret
+  return UnsignedIteratorEarlyStop(all_threads, num_requested),
+  all_threads,
+  0x00000000,
+  wpret
 end
 
 @inline function request_threads(num_requested, threadmask)
-  _request_threads(num_requested % UInt32, worker_pointer(), worker_mask_count(), threadmask)
+  _request_threads(
+    num_requested % UInt32,
+    worker_pointer(),
+    worker_mask_count(),
+    threadmask,
+  )
 end
 @inline request_threads(num_requested) = request_threads(num_requested, nothing)
