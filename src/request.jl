@@ -1,6 +1,8 @@
+import CPUSummary
+
 function worker_bits()
-  wts = nextpow2(num_threads())
-  ws = static(8sizeof(UInt))
+  wts = nextpow2(CPUSummary.sys_threads()) # Typically sys_threads (i.e. Sys.CPU_THREADS) does not change between runs, thus it will precompile well.
+  ws = static(8sizeof(UInt))               # For testing purposes it can be overridden by JULIA_CPU_THREADS,
   ifelse(Static.lt(wts,ws), ws, wts)
 end
 function worker_mask_count()
@@ -90,4 +92,3 @@ end
   _request_threads(num_requested % UInt32, worker_pointer(), worker_mask_count(), threadmask)
 end
 @inline request_threads(num_requested) = request_threads(num_requested, nothing)
-
