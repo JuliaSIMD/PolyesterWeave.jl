@@ -9,22 +9,14 @@ Base.eltype(::UnsignedIterator) = UInt32
 Base.length(u::UnsignedIterator) = count_ones(u.u)
 Base.size(u::UnsignedIterator) = (count_ones(u.u),)
 
-# @inline function Base.iterate(u::UnsignedIterator, uu = u.u)
-#     tz = trailing_zeros(uu) % UInt32
-#     # tz ≥ 0x00000020 && return nothing
-#     tz > 0x0000001f && return nothing
-#     uu ⊻= (0x00000001 << tz)
-#     tz, uu
-# end
 @inline function Base.iterate(u::UnsignedIterator, (i,uu) = (0x00000000,u.u))
-    tz = trailing_zeros(uu) % UInt32
-    tz == 0x00000020 && return nothing
-    i += tz
-    tz += 0x00000001
-    uu >>>= tz
-    (i, (i+0x00000001,uu))
+  tz = trailing_zeros(uu) % UInt32
+  tz == oftype(uu, 8*sizeof(uu)) && return nothing
+  tz += 0x00000001
+  i += tz
+  uu >>>= tz
+  (i, (i, uu))
 end
-
 
 """
     UnsignedIteratorEarlyStop(thread_mask[, num_threads = count_ones(thread_mask)])
@@ -56,6 +48,38 @@ struct UnsignedIteratorEarlyStop{U}
 end
 UnsignedIteratorEarlyStop(u) = UnsignedIteratorEarlyStop(u, count_ones(u) % UInt32)
 UnsignedIteratorEarlyStop(u, i) = UnsignedIteratorEarlyStop(u, i % UInt32)
+
+@inline _popfirstthread(::Tuple{}, ::Tuple{}, offset) = 0, (), ()
+@inline function _popfirstthread(
+  u::Tuple{U,Vararg{U,K}}, a::Tuple{TT,Vararg{TT,K}}, offset
+) where {K,T,TT<:UnsignedIterator{T},U<:UnsignedIteratorEarlyStop{T}}
+  uf = first(u)
+  af = first(a)
+  u0 = uf.u
+  if iszero(u0)
+    tid0, tupi, tup = _popfirstthread(Base.tail(u), offset + 8sizeof(u0))
+    return tid0, (uf, tupi...), (af, tup...)
+  end
+  tz = Base.trailing_zeros(u0)
+  mask = one(u0)<<tz
+  u0 &= ~mask
+  a0 = af.u
+  a0 |= mask
+  tid1 = tz + offset
+  (
+    tid1,
+    (UnsignedIteratorEarlyStop(u0,uf.i-1), Base.tail(u)...),
+    (UnsignedIterator(a0), Base.tail(a)...)
+  )
+end
+
+@inline function popfirstthread(
+  t::Tuple{Tuple{A,Vararg{A,K}},Tuple{TT,Vararg{TT,K}},Tuple{T,Vararg{T,K}}}
+) where {K, T<:Unsigned, TT<:UnsignedIterator{T}, A<:UnsignedIteratorEarlyStop{T}}
+  a, b, c = t
+  tid, a, b = _popfirstthread(a, b, 1)
+  tid, (a, b, c)
+end
 
 mask(u::UnsignedIteratorEarlyStop) = getfield(u, :u)
 Base.IteratorSize(::Type{<:UnsignedIteratorEarlyStop}) = Base.HasShape{1}()
