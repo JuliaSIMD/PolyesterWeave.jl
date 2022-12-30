@@ -1,6 +1,8 @@
+import CPUSummary
+
 function worker_bits()
-  wts = nextpow2(Sys.CPU_THREADS) # TODO this is overprovisioning - make sure we are not needlessly iterating through this if we actually have fewer threads available
-  ws = static(8sizeof(UInt))
+  wts = nextpow2(CPUSummary.sys_threads()) # Typically sys_threads (i.e. Sys.CPU_THREADS) does not change between runs, thus it will precompile well.
+  ws = static(8sizeof(UInt))               # For testing purposes it can be overridden by JULIA_CPU_THREADS,
   ifelse(Static.lt(wts,ws), ws, wts)
 end
 function worker_mask_count()
