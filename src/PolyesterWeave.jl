@@ -9,31 +9,36 @@ export request_threads, free_threads!
 
 @static if VERSION ≥ v"1.6.0-DEV.674"
   @inline function assume(b::Bool)
-    Base.llvmcall(("""
-      declare void @llvm.assume(i1)
+    Base.llvmcall((
+      """
+    declare void @llvm.assume(i1)
 
-      define void @entry(i8 %byte) alwaysinline {
-      top:
-        %bit = trunc i8 %byte to i1
-        call void @llvm.assume(i1 %bit)
-        ret void
-      }
-  """, "entry"), Cvoid, Tuple{Bool}, b)
+    define void @entry(i8 %byte) alwaysinline {
+    top:
+      %bit = trunc i8 %byte to i1
+      call void @llvm.assume(i1 %bit)
+      ret void
+    }
+""",
+      "entry",
+    ), Cvoid, Tuple{Bool}, b)
   end
 else
-  @inline assume(b::Bool) = Base.llvmcall(("declare void @llvm.assume(i1)", "%b = trunc i8 %0 to i1\ncall void @llvm.assume(i1 %b)\nret void"), Cvoid, Tuple{Bool}, b)
+  @inline assume(b::Bool) = Base.llvmcall(
+    (
+      "declare void @llvm.assume(i1)",
+      "%b = trunc i8 %0 to i1\ncall void @llvm.assume(i1 %b)\nret void",
+    ),
+    Cvoid,
+    Tuple{Bool},
+    b,
+  )
 end
 
 const WORKERS = Ref{NTuple{8,UInt64}}(ntuple(((zero ∘ UInt64)), Val(8)))
 
 include("unsignediterator.jl")
 include("request.jl")
-
-# Consider removing this from Polyester and PolyesterWeave on the next breaking release
-# It is exported by Polyester, so we can not just delete it without a breaking release.
-# Previously we used CPUSummary.num_threads which caused significant
-# TTFX problems due to it being redefined inside of CPUSummary.__init__
-const num_threads = Threads.nthreads
 
 dynamic_thread_count() = min((Sys.CPU_THREADS)::Int, Threads.nthreads())
 function worker_mask_init(x)
@@ -52,7 +57,7 @@ end
 function reset_workers!()
   # workers = ntuple(((zero ∘ UInt64)), Val(8))
   nt = dynamic_thread_count() - 1
-  WORKERS[] = Base.Cartesian.@ntuple 8 i -> worker_mask_init(nt - (i-1)*64)
+  WORKERS[] = Base.Cartesian.@ntuple 8 i -> worker_mask_init(nt - (i - 1) * 64)
 end
 function __init__()
   reset_workers!()

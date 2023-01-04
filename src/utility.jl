@@ -18,10 +18,10 @@ end
 ```
 """
 function disable_polyester_threads(f::F) where {F}
-    t, r = request_threads(num_threads())
-    try
-        f()
-    finally
-        foreach(free_threads!, r)
-    end
+  _, r = request_threads(Threads.nthreads())
+  try
+    f()
+  finally
+    foreach(free_threads!, r)
+  end
 end
