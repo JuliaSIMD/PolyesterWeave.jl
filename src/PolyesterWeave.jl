@@ -1,4 +1,8 @@
 module PolyesterWeave
+if isdefined(Base, :Experimental) &&
+   isdefined(Base.Experimental, Symbol("@max_methods"))
+    @eval Base.Experimental.@max_methods 1
+end
 
 using BitTwiddlingConvenienceFunctions: nextpow2
 using ThreadingUtilities: _atomic_store!, _atomic_or!, _atomic_xchg!
