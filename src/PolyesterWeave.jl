@@ -1,31 +1,34 @@
 module PolyesterWeave
-if isdefined(Base, :Experimental) &&
-   isdefined(Base.Experimental, Symbol("@max_methods"))
-    @eval Base.Experimental.@max_methods 1
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@max_methods"))
+  @eval Base.Experimental.@max_methods 1
 end
 
 using BitTwiddlingConvenienceFunctions: nextpow2
 using ThreadingUtilities: _atomic_store!, _atomic_or!, _atomic_xchg!
-using Static
 using IfElse: ifelse
 
 export request_threads, free_threads!
 
 @static if VERSION ≥ v"1.6.0-DEV.674"
   @inline function assume(b::Bool)
-    Base.llvmcall((
-      """
-    declare void @llvm.assume(i1)
+    Base.llvmcall(
+      (
+        """
+      declare void @llvm.assume(i1)
 
-    define void @entry(i8 %byte) alwaysinline {
-    top:
-      %bit = trunc i8 %byte to i1
-      call void @llvm.assume(i1 %bit)
-      ret void
-    }
-""",
-      "entry",
-    ), Cvoid, Tuple{Bool}, b)
+      define void @entry(i8 %byte) alwaysinline {
+      top:
+        %bit = trunc i8 %byte to i1
+        call void @llvm.assume(i1 %bit)
+        ret void
+      }
+  """,
+        "entry",
+      ),
+      Cvoid,
+      Tuple{Bool},
+      b,
+    )
   end
 else
   @inline assume(b::Bool) = Base.llvmcall(
