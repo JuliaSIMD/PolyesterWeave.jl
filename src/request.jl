@@ -20,7 +20,9 @@ function free_threads!(freed_threads_tuple::NTuple{1,U}) where {U<:Unsigned}
   _atomic_or!(worker_pointer(), freed_threads_tuple[1])
   nothing
 end
-function free_threads!(freed_threads_tuple::Tuple{U,Vararg{U,N}}) where {N,U<:Unsigned}
+function free_threads!(
+  freed_threads_tuple::Tuple{U,Vararg{U,N}}
+) where {N,U<:Unsigned}
   wp = worker_pointer()
   for freed_threads in freed_threads_tuple
     _atomic_or!(wp, freed_threads)
@@ -38,14 +40,15 @@ end
   num_requested::UInt32,
   wp::Ptr,
   ::StaticInt{N},
-  threadmask,
+  threadmask
 ) where {N}
-  ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
+  ui, ft, num_requested, wp =
+    __request_threads(num_requested, wp, _first(threadmask))
   uit, ftt = _request_threads(
     num_requested,
     wp,
     StaticInt{N}() - StaticInt{1}(),
-    _remaining(threadmask),
+    _remaining(threadmask)
   )
   (ui, uit...), (ft, ftt...)
 end
@@ -53,9 +56,10 @@ end
   num_requested::UInt32,
   wp::Ptr,
   ::StaticInt{1},
-  threadmask,
+  threadmask
 )
-  ui, ft, num_requested, wp = __request_threads(num_requested, wp, _first(threadmask))
+  ui, ft, num_requested, wp =
+    __request_threads(num_requested, wp, _first(threadmask))
   (ui,), (ft,)
 end
 
@@ -73,7 +77,10 @@ end
 @inline function __request_threads(num_requested::UInt32, wp::Ptr, threadmask)
   no_threads = zero(UInt)
   if (num_requested ≢ StaticInt{-1}()) && (num_requested % Int32 ≤ zero(Int32))
-    return UnsignedIteratorEarlyStop(zero(UInt), 0x00000000), no_threads, 0x00000000, wp
+    return UnsignedIteratorEarlyStop(zero(UInt), 0x00000000),
+    no_threads,
+    0x00000000,
+    wp
   end
   # to get more, we xchng, setting all to `0`
   # then see which we need, and free those we aren't using.
@@ -83,7 +90,10 @@ end
   additional_threads = count_ones(all_threads) % UInt32
   # num_requested === StaticInt{-1}() && return reserved_threads, all_threads
   if num_requested === StaticInt{-1}()
-    return UnsignedIteratorEarlyStop(all_threads), all_threads, num_requested, wpret
+    return UnsignedIteratorEarlyStop(all_threads),
+    all_threads,
+    num_requested,
+    wpret
   end
   nexcess = num_requested - additional_threads
   if signed(nexcess) ≥ 0
@@ -112,7 +122,7 @@ end
     num_requested % UInt32,
     worker_pointer(),
     worker_mask_count(),
-    threadmask,
+    threadmask
   )
 end
 @inline request_threads(num_requested) = request_threads(num_requested, nothing)

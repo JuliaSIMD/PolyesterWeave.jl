@@ -11,6 +11,7 @@ This call will disable all PolyesterWeave threads, including those in
 
 Avoid calling it as `@threads for i in 1:n disable_polyester_threads(f) end` as that creates
 unnecessary per-thread overhead. Rather call it in the outermost scope, e.g. as given here:
+
 ```
 disable_polyester_threads() do
     @threads for i in 1:n f()

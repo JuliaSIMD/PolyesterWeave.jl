@@ -1,7 +1,7 @@
 module PolyesterWeave
 if isdefined(Base, :Experimental) &&
    isdefined(Base.Experimental, Symbol("@max_methods"))
-    @eval Base.Experimental.@max_methods 1
+  @eval Base.Experimental.@max_methods 1
 end
 
 using BitTwiddlingConvenienceFunctions: nextpow2
@@ -13,29 +13,34 @@ export request_threads, free_threads!
 
 @static if VERSION ≥ v"1.6.0-DEV.674"
   @inline function assume(b::Bool)
-    Base.llvmcall((
-      """
-    declare void @llvm.assume(i1)
+    Base.llvmcall(
+      (
+        """
+      declare void @llvm.assume(i1)
 
-    define void @entry(i8 %byte) alwaysinline {
-    top:
-      %bit = trunc i8 %byte to i1
-      call void @llvm.assume(i1 %bit)
-      ret void
-    }
-""",
-      "entry",
-    ), Cvoid, Tuple{Bool}, b)
+      define void @entry(i8 %byte) alwaysinline {
+      top:
+        %bit = trunc i8 %byte to i1
+        call void @llvm.assume(i1 %bit)
+        ret void
+      }
+  """,
+        "entry"
+      ),
+      Cvoid,
+      Tuple{Bool},
+      b
+    )
   end
 else
   @inline assume(b::Bool) = Base.llvmcall(
     (
       "declare void @llvm.assume(i1)",
-      "%b = trunc i8 %0 to i1\ncall void @llvm.assume(i1 %b)\nret void",
+      "%b = trunc i8 %0 to i1\ncall void @llvm.assume(i1 %b)\nret void"
     ),
     Cvoid,
     Tuple{Bool},
-    b,
+    b
   )
 end
 
@@ -45,15 +50,13 @@ include("unsignediterator.jl")
 include("request.jl")
 
 dynamic_thread_count() = min((Sys.CPU_THREADS)::Int, Threads.nthreads())
-function worker_mask_init(x)
-  if x < 0
+worker_mask_init(x) = if x < 0
     0x0000000000000000
   elseif x ≥ 64
     0xffffffffffffffff
   else
     ((0x0000000000000001 << x) - 0x0000000000000001)
   end
-end
 # function static_thread_init()
 #   nt = num_threads()
 #   Base.Cartesian.@ntuple 8 i -> worker_mask_init(nt - (i-1)*64)
@@ -63,9 +66,7 @@ function reset_workers!()
   nt = dynamic_thread_count() - 1
   WORKERS[] = Base.Cartesian.@ntuple 8 i -> worker_mask_init(nt - (i - 1) * 64)
 end
-function __init__()
-  reset_workers!()
-end
+__init__() = reset_workers!()
 
 include("utility.jl")
 
