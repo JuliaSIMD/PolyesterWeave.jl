@@ -1,12 +1,23 @@
 function worker_bits()
   wts = nextpow2(Threads.nthreads()) # Typically sys_threads (i.e. Sys.CPU_THREADS) does not change between runs, thus it will precompile well.
   ws = static(8sizeof(UInt))               # For testing purposes it can be overridden by JULIA_CPU_THREADS,
-  # Always return Int to avoid type instability with high thread counts
-  ifelse(wts < 64, 64, wts)
+  # Return StaticInt for common cases, Int for high thread counts to avoid type instability
+  result = ifelse(wts < 64, 64, wts)
+  # Use StaticInt for compile-time optimization in common cases
+  if result <= 128  # Cover common thread counts
+    return StaticInt{result}()
+  else
+    return result  # Fall back to Int for very high thread counts
+  end
 end
 function worker_mask_count()
   bits = worker_bits()
-  cld(bits, 64)
+  # Preserve return type from worker_bits (StaticInt or Int)
+  if bits isa StaticInt
+    return static(cld(Int(bits), 64))
+  else
+    return cld(bits, 64)
+  end
 end
 
 worker_pointer() = Base.unsafe_convert(Ptr{UInt}, pointer_from_objref(WORKERS))
